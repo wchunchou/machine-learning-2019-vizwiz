@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Lab assignment 4 foundation
 # - Working with the VizWiz dataset
 import os
