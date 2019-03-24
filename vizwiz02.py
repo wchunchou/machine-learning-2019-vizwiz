@@ -18,6 +18,7 @@ from sklearn.svm import SVC
 
 print("import data from VizWiz...")
 base_url = 'https://ivc.ischool.utexas.edu/VizWiz/data'
+challenge_url=
 img_dir = '%s/Images/' %base_url
 
 # Retrieve file from ULR and store it locally
@@ -105,7 +106,7 @@ def extract_language_features(question):
     return featureVector
 X_train, y_train, X_test, y_test =[],[],[],[]
 
-num_VQs = 800
+num_VQs = 20000
 for vq in training_data[0:num_VQs]:
     # Question features
     question = vq['question']
@@ -129,7 +130,7 @@ for vq in training_data[0:num_VQs]:
     X_train.append(multimodal_features)
     y_train.append(vq['answerable'])
 
-num_VQs_testing = 100
+num_VQs_testing = 3173
 for vq in validation_data[0:num_VQs_testing]:
     # Question features
     question = vq['question']
@@ -190,4 +191,5 @@ print("Training set loss: %s" % mlp.loss_)
 
 
 f = open("demofile.txt", "a")
-f.write("Now the file has one more line!")
+f.write(format(mlp.score(X_test, y_test)))
+f.write(",")
