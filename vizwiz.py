@@ -4,7 +4,6 @@
 import os
 import json
 from pprint import pprint
-import matplotlib.pyplot as plt
 import numpy as np
 import requests
 from skimage.transform import resize
@@ -13,6 +12,9 @@ from skimage import color
 from skimage import feature
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
+
 
 print("import data from VizWiz...")
 base_url = 'https://ivc.ischool.utexas.edu/VizWiz/data'
@@ -103,7 +105,7 @@ def extract_language_features(question):
     return featureVector
 X_train, y_train, X_test, y_test =[],[],[],[]
 
-num_VQs = 100
+num_VQs = 800
 for vq in training_data[0:num_VQs]:
     # Question features
     question = vq['question']
@@ -127,7 +129,7 @@ for vq in training_data[0:num_VQs]:
     X_train.append(multimodal_features)
     y_train.append(vq['answerable'])
 
-num_VQs_testing = 50
+num_VQs_testing = 100
 for vq in validation_data[0:num_VQs_testing]:
     # Question features
     question = vq['question']
@@ -154,11 +156,50 @@ for vq in validation_data[0:num_VQs_testing]:
 print("extra features sucessfully!")
 
 print("training the model...")
-mlp = MLPClassifier(max_iter=20, random_state=42, verbose=True, hidden_layer_sizes=(100,))
-mlp.fit(X_train, y_train)
-print("evalute model")
-print("Accuracy on the test set: {:.2f}".format(mlp.score(X_test, y_test)))
-print("Activation function used at the output layer: %s" % mlp.out_activation_)
-print("Number of outputs at the output layer: %f" % mlp.n_outputs_)
-print("List predicted classes at the output layer: %s" % mlp.classes_)
-print("Training set loss: %s" % mlp.loss_)
+
+gaussian_model = GaussianNB()
+gaussian_model.fit(X_train, y_train)
+y_predictedNB = gaussian_model.predict(X_test)
+test_accuracy = gaussian_model.score(X_test, y_test)
+print("test_accuracy",test_accuracy)
+
+#mlp = MLPClassifier(max_iter=20, random_state=42, verbose=True, hidden_layer_sizes=(100,))
+#mlp.fit(X_train, y_train)
+#print("evalute model")
+#print("Accuracy on the test set: {:.2f}".format(mlp.score(X_test, y_test)))
+#print("Activation function used at the output layer: %s" % mlp.out_activation_)
+#print("Number of outputs at the output layer: %f" % mlp.n_outputs_)
+#print("List predicted classes at the output layer: %s" % mlp.classes_)
+#print("Training set loss: %s" % mlp.loss_)
+
+# Transform scale of data
+ss = StandardScaler()
+X_train_scaled = ss.fit_transform(X_train)
+X_test_scaled = ss.transform(X_test)
+
+# Tune hyperparameter using cross-validation
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
+kfold = KFold(n_splits=10, shuffle=True, random_state=42)
+
+best_score = 0
+for degree_value in range(2,10):
+    for gamma_value in [0.01, 0.1, 1, 10, 100]:
+        for c_value in [0.01, 0.1, 1, 10, 100]:
+            svm = SVC(kernel="poly", degree=degree_value, gamma=gamma_value, C=c_value)
+            fold_accuracies = cross_val_score(svm, X_train_scaled, y_train, cv=kfold) 
+            score = fold_accuracies.mean()
+            if score > best_score:
+                best_param = {'degree':degree_value,'gamma':gamma_value,'C': c_value}
+                best_score = score
+        
+svm = SVC(**best_param)
+svm.fit(X_train_scaled, y_train)
+test_score = svm.score(X_test_scaled, y_test)
+print("Best score on cross-validation: {:0.2f}".format(best_score))
+print("Best parameters: {}".format(best_param))
+print("Test set score: {:.2f}".format(test_score))
+
+y_predicted=svm.predict(X_test_scaled)
+from sklearn import metrics
+print(metrics.classification_report(y_predicted, y_test))
