@@ -1,35 +1,26 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Mar 24 00:28:23 2019
-
-@author: floydesk
-"""
-
 #!/usr/bin/env/python3.6
 # Lab assignment 4 
 # - Working with the VizWiz dataset
 import os
 import json
 from pprint import pprint
-import pandas as pd
-from pandas.io.json import json_normalize
-import numpy as np
 import requests
-import key
+import numpy as np
+import scipy as sp
+import matplotlib.image as mpimg
+import matplotlib.patches as mpatches
 from skimage.transform import resize
 from skimage import io
 from skimage import color
 from skimage import feature
-import matplotlib.pyplot as plt
+from skimage import measure
+import scipy.ndimage as ndi
+
+from sklearn.decomposition import PCA
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
-from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
-import key
-subscription_key = key.key()
-vision_base_url = 'https://westus.api.cognitive.microsoft.com/vision/v1.0'
-vision_analyze_url = vision_base_url + '/analyze?'
+
 
 print("import data from VizWiz...")
 base_url = 'https://ivc.ischool.utexas.edu/VizWiz/data'
@@ -61,57 +52,23 @@ validation_data = val_data.json()
 print("import validation data successfully")
 
 
-
 # Transform image
 print("extracting image and sentence feature...")
 
 def extract_image_features(image_url):
     # Read image
     image = io.imread(image_url)
-    
-    # Azure CV
-    # Visualize image
-    image = io.imread(image_url)
-    plt.imshow(image)
-    plt.axis('off')
-    plt.show()
-    
-    # Microsoft API headers, params, etc
-    headers = {'Ocp-Apim-Subscription-key': subscription_key}
-    params = {'visualfeatures': 'Adult,Categories,Description,Color,Faces,ImageType,Tags'}
-    data = {'url': image_url}
-    
-    # send request, get API response
-    response = requests.post(vision_analyze_url, headers=headers, params=params, json=data)
-    response.raise_for_status()
-    data = response.json()
-    features = extract_features(data)
 
-    # Extract features
+    # Pre-process image
+    width = 255
+    height = 255
+    image = resize(image, (width, height), mode='reflect') # Ensuring all images have the same dimension
+    greyscale_image = color.rgb2gray(image) # Restricting the dimension of our data from 3D to 2D
+    
+    # Extract featuresdes
     #featureVector = feature.hog(greyscale_image, orientations=9, pixels_per_cell=(8,8), cells_per_block=(1,1), block_norm='L2-Hys')
-    
-    return features
-
-def extract_features(data):
-    return {
-        "description": data["description"],
-        "tags": data["tags"],
-        "image_format": data["metadata"]["format"],
-        "image_dimensions": str(data["metadata"]["width"]) + " x " + str(data["metadata"]["height"]) + " y ",
-        "clip_art_type": data["imageType"]["clipArtType"],
-        "line_drawing_type": data["imageType"]["lineDrawingType"],
-        "black_and_white": data["color"]["isBwImg"],
-        "adult_content": data["adult"]["isAdultContent"],
-        "adult_score": data["adult"]["adultScore"],
-        "racy": data["adult"]["isRacyContent"],
-        "racy_score": data["adult"]["racyScore"],
-        "categories":  data["categories"],
-        "faces": data["faces"],
-        "dominant_color_background": data["color"]["dominantColorBackground"],
-        "dominant_foreground_color": data["color"]["dominantColorForeground"],
-        "accent_color": data["color"]["accentColor"]
-    }
-
+    featureVector = feature.daisy(greyscale_image, step=4, radius=15, rings=3, histograms=8, orientations=8, normalization='l2', sigmas=None, ring_radii=None, visualize=False)
+    return featureVector
 
 # Extract features to describe the questions
 import nltk
@@ -154,7 +111,7 @@ def extract_language_features(question):
     return featureVector
 X_train, y_train, X_test, y_test =[],[],[],[]
 
-num_VQs = 20
+num_VQs = 200
 for vq in training_data[0:num_VQs]:
     # Question features
     question = vq['question']
@@ -168,7 +125,6 @@ for vq in training_data[0:num_VQs]:
     image_url = img_dir + image_name
     #print(image_url)
     image_feature = extract_image_features(image_url)
-    print(image_feature)
     #print(image_feature[:5])
     #print(image_feature.shape)
     
@@ -179,7 +135,7 @@ for vq in training_data[0:num_VQs]:
     X_train.append(multimodal_features)
     y_train.append(vq['answerable'])
 
-num_VQs_testing = 3
+num_VQs_testing = 30
 for vq in validation_data[0:num_VQs_testing]:
     # Question features
     question = vq['question']
@@ -207,6 +163,10 @@ print("extra features sucessfully!")
 
 print("training the model...")
 
+# Transform scale of data
+ss = StandardScaler()
+X_train_scaled = ss.fit_transform(X_train)
+X_test_scaled = ss.transform(X_test)    
 
 
 #gaussian_model = GaussianNB()
