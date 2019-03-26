@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Mar 24 00:28:23 2019
+
+@author: floydesk
+"""
+
 #!/usr/bin/env/python3.6
 # Lab assignment 4 
 # - Working with the VizWiz dataset
@@ -6,19 +14,23 @@ import json
 from pprint import pprint
 import numpy as np
 import requests
+import key
 from skimage.transform import resize
 from skimage import io
 from skimage import color
 from skimage import feature
+import matplotlib.pyplot as plt
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
-
+import key
+subscription_key = key.key()
+vision_base_url = 'https://westus.api.cognitive.microsoft.com/vision/v1.0'
+vision_analyze_url = vision_base_url + '/analyze?'
 
 print("import data from VizWiz...")
 base_url = 'https://ivc.ischool.utexas.edu/VizWiz/data'
-challenge_url=
 img_dir = '%s/Images/' %base_url
 
 # Retrieve file from ULR and store it locally
@@ -53,17 +65,50 @@ print("extracting image and sentence feature...")
 def extract_image_features(image_url):
     # Read image
     image = io.imread(image_url)
-
-    # Pre-process image
-    width = 255
-    height = 255
-    image = resize(image, (width, height), mode='reflect') # Ensuring all images have the same dimension
-    greyscale_image = color.rgb2gray(image) # Restricting the dimension of our data from 3D to 2D
+    
+    # Azure CV
+    # Visualize image
+    image = io.imread(image_url)
+    plt.imshow(image)
+    plt.axis('off')
+    plt.show()
+    
+    # Microsoft API headers, params, etc
+    headers = {'Ocp-Apim-Subscription-key': subscription_key}
+    params = {'visualfeatures': 'Adult,Categories,Description,Color,Faces,ImageType,Tags'}
+    data = {'url': image_url}
+    
+    # send request, get API response
+    response = requests.post(vision_analyze_url, headers=headers, params=params, json=data)
+    response.raise_for_status()
+    data = response.json()
+    features = extract_features(data)
     
     # Extract features
-    featureVector = feature.hog(greyscale_image, orientations=9, pixels_per_cell=(8,8), cells_per_block=(1,1), block_norm='L2-Hys')
+    #featureVector = feature.hog(greyscale_image, orientations=9, pixels_per_cell=(8,8), cells_per_block=(1,1), block_norm='L2-Hys')
     
-    return featureVector
+    return features
+
+def extract_features(data):
+    return {
+        "description": data["description"],
+        "tags": data["tags"],
+        "image_format": data["metadata"]["format"],
+        "image_dimensions": str(data["metadata"]["width"]) + " x " + str(data["metadata"]["height"]) + " y ",
+        "clip_art_type": data["imageType"]["clipArtType"],
+        "line_drawing_type": data["imageType"]["lineDrawingType"],
+        "black_and_white": data["color"]["isBwImg"],
+        "adult_content": data["adult"]["isAdultContent"],
+        "adult_score": data["adult"]["adultScore"],
+        "racy": data["adult"]["isRacyContent"],
+        "racy_score": data["adult"]["racyScore"],
+        "categories":  data["categories"],
+        "faces": data["faces"],
+        "dominant_color_background": data["color"]["dominantColorBackground"],
+        "dominant_foreground_color": data["color"]["dominantColorForeground"],
+        "accent_color": data["color"]["accentColor"]
+    }
+
 
 # Extract features to describe the questions
 import nltk
@@ -106,7 +151,7 @@ def extract_language_features(question):
     return featureVector
 X_train, y_train, X_test, y_test =[],[],[],[]
 
-num_VQs = 20000
+num_VQs = 200
 for vq in training_data[0:num_VQs]:
     # Question features
     question = vq['question']
@@ -130,7 +175,7 @@ for vq in training_data[0:num_VQs]:
     X_train.append(multimodal_features)
     y_train.append(vq['answerable'])
 
-num_VQs_testing = 3173
+num_VQs_testing = 30
 for vq in validation_data[0:num_VQs_testing]:
     # Question features
     question = vq['question']
@@ -191,5 +236,4 @@ print("Training set loss: %s" % mlp.loss_)
 
 
 f = open("demofile.txt", "a")
-f.write(format(mlp.score(X_test, y_test)))
-f.write(",")
+f.write("Now the file has one more line!")
