@@ -15,8 +15,6 @@ from pprint import pprint
 import numpy as np
 import requests
 import key
-import argparse
-import cv2
 from skimage.transform import resize
 from skimage import io
 from skimage import color
