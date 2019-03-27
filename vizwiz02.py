@@ -26,6 +26,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
+from sklearn import preprocessing
 import key
 subscription_key = key.key()
 vision_base_url = 'https://westus.api.cognitive.microsoft.com/vision/v1.0'
@@ -78,33 +79,29 @@ def extract_image_features(image_url):
     
     # Microsoft API headers, params, etc
     headers = {'Ocp-Apim-Subscription-key': subscription_key}
-    params = {'visualfeatures': 'Adult,Categories,Description,Color,Faces,ImageType,Tags'}
+    params = {'visualfeatures': 'Categories,Color,description,Faces,Tags'}
     data = {'url': image_url}
     
     # send request, get API response
     response = requests.post(vision_analyze_url, headers=headers, params=params, json=data)
     response.raise_for_status()
     data = response.json()
-    features = extract_features(data)
+    extracted_data = extract_features(data)
+    #features = [extracted_data['tags'][0]]
+    
 
     # Extract features
-    #featureVector = feature.hog(greyscale_image, orientations=9, pixels_per_cell=(8,8), cells_per_block=(1,1), block_norm='L2-Hys')
+    featureVector = feature.hog(greyscale_image, orientations=9, pixels_per_cell=(8,8), cells_per_block=(1,1), block_norm='L2-Hys')
     
-    return features
+    
+    return featureVector
+
 
 def extract_features(data):
     return {
         "description": data["description"],
         "tags": data["tags"],
-        "image_format": data["metadata"]["format"],
-        "image_dimensions": str(data["metadata"]["width"]) + " x " + str(data["metadata"]["height"]) + " y ",
-        "clip_art_type": data["imageType"]["clipArtType"],
-        "line_drawing_type": data["imageType"]["lineDrawingType"],
         "black_and_white": data["color"]["isBwImg"],
-        "adult_content": data["adult"]["isAdultContent"],
-        "adult_score": data["adult"]["adultScore"],
-        "racy": data["adult"]["isRacyContent"],
-        "racy_score": data["adult"]["racyScore"],
         "categories":  data["categories"],
         "faces": data["faces"],
         "dominant_color_background": data["color"]["dominantColorBackground"],
@@ -112,10 +109,10 @@ def extract_features(data):
         "accent_color": data["color"]["accentColor"]
     }
 
-
 # Extract features to describe the questions
 import nltk
 nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
 
 def extract_language_features(question):
     #print(question)
@@ -125,11 +122,17 @@ def extract_language_features(question):
     words = nltk.word_tokenize(question) # for slight variant call question.split() 
     num_words = len(words)
     num_unique_words = len(set(words))
+    partsOfSpeechTags = nltk.pos_tag(words)
+    partsOfSpeech = [wordResult[1] for wordResult in partsOfSpeechTags]
+    tag_fd = nltk.FreqDist(partsOfSpeech)
+    whDeterminerCount = tag_fd['WDT']
+    whPronounCount = tag_fd['WP']
+    comparativeAdjectiveCount = tag_fd['JJR']
 
-    featureVector = [num_words, num_unique_words]
+    featureVector = [num_words, num_unique_words, whDeterminerCount, whPronounCount, comparativeAdjectiveCount]
     
     # Options for additional features to use:
-    #partsOfSpeechTag = nltk.pos_tag(words)
+    
 
     # https://pythonprogramming.net/natural-language-toolkit-nltk-part-speech-tagging/
     #partsOfSpeechTags = nltk.pos_tag(nltk.word_tokenize(question))
@@ -169,8 +172,8 @@ for vq in training_data[0:num_VQs]:
     #print(image_url)
     image_feature = extract_image_features(image_url)
     print(image_feature)
-    #print(image_feature[:5])
-    #print(image_feature.shape)
+    print(image_feature[:5])
+    print(image_feature.shape)
     
     # PLACEHOLDER: Concatenate the question and image features
     multimodal_features = np.concatenate((question_feature, image_feature), axis=None)

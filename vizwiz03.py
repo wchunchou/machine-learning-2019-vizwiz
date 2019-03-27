@@ -114,7 +114,7 @@ def extract_language_features(question):
     return featureVector
 X_train, y_train, X_test, y_test =[],[],[],[]
 
-num_VQs = 200
+num_VQs = 100
 for vq in training_data[0:num_VQs]:
     # Question features
     question = vq['question']
@@ -167,12 +167,13 @@ print("extra features sucessfully!")
 print("training the model...")
 
 # Transform scale of data
+#pca = PCA(n_components=15)
+#X_train_pca = pca.fit(X_train)
+#X_test_pca = pca.fit(X_test)
 ss = StandardScaler()
 X_train_scaled = ss.fit_transform(X_train)
 X_test_scaled = ss.transform(X_test)    
-pca = PCA(n_components=15)
-X_train_pca = pca.fit(X_train_scaled)
-X_test_pca = pca.fit(X_test_scaled)
+
 
 
 #gaussian_model = GaussianNB()
@@ -181,10 +182,10 @@ X_test_pca = pca.fit(X_test_scaled)
 #test_accuracy = gaussian_model.score(X_test, y_test)
 #print("test_accuracy",test_accuracy)
 
-mlp = MLPClassifier(max_iter=20, random_state=42, verbose=True, hidden_layer_sizes=(200,200,200,200,100))
-mlp.fit(X_train_pca, y_train)
+mlp = MLPClassifier(max_iter=15, random_state=42, verbose=True, hidden_layer_sizes=(200,200,200))
+mlp.fit(X_train_scaled, y_train)
 print("evalute model")
-print("Accuracy on the test set: {:.2f}".format(mlp.score(X_test_pca, y_test)))
+print("Accuracy on the test set: {:.2f}".format(mlp.score(X_test_scaled, y_test)))
 print("Activation function used at the output layer: %s" % mlp.out_activation_)
 print("Number of outputs at the output layer: %f" % mlp.n_outputs_)
 print("List predicted classes at the output layer: %s" % mlp.classes_)
