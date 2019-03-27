@@ -67,28 +67,16 @@ print("import validation data successfully")
 print("extracting image and sentence feature...")
 
 def extract_image_features(image_url):
-    # Read image
     image = io.imread(image_url)
     
-    # Azure CV
-    # Visualize image
-    image = io.imread(image_url)
-    plt.imshow(image)
-    plt.axis('off')
-    plt.show()
+    # Pre-process image
+    width = 255
+    height = 255
+    image = resize(image, (width, height), mode='reflect') # Ensuring all images have the same dimension
+    greyscale_image = color.rgb2gray(image) # Restricting the dimension of our data from 3D to 2D
     
-    # Microsoft API headers, params, etc
-    headers = {'Ocp-Apim-Subscription-key': subscription_key}
-    params = {'visualfeatures': 'Categories,Color,description,Faces,Tags'}
-    data = {'url': image_url}
-    
-    # send request, get API response
-    response = requests.post(vision_analyze_url, headers=headers, params=params, json=data)
-    response.raise_for_status()
-    data = response.json()
-    extracted_data = extract_features(data)
-    #features = [extracted_data['tags'][0]]
-    
+    # Extract features
+    featureVector = feature.hog(greyscale_image, orientations=9, pixels_per_cell=(8,8), cells_per_block=(1,1), block_norm='L2-Hys')
 
     # Extract features
     featureVector = feature.hog(greyscale_image, orientations=9, pixels_per_cell=(8,8), cells_per_block=(1,1), block_norm='L2-Hys')
@@ -96,6 +84,21 @@ def extract_image_features(image_url):
     
     return featureVector
 
+def extract_image_features_azure(image_url):
+    # Azure CV
+    image = io.imread(image_url)
+    
+    # Microsoft API headers, params, etc
+    #headers = {'Ocp-Apim-Subscription-key': subscription_key}
+    #params = {'visualfeatures': 'Categories,Color,description,Faces,Tags'}
+    #data = {'url': image_url}
+    
+    # send request, get API response
+    #response = requests.post(vision_analyze_url, headers=headers, params=params, json=data)
+    #response.raise_for_status()
+    #data = response.json()
+    #extracted_data = extract_features(data)
+    #features = [extracted_data['tags'][0]]
 
 def extract_features(data):
     return {
@@ -128,8 +131,9 @@ def extract_language_features(question):
     whDeterminerCount = tag_fd['WDT']
     whPronounCount = tag_fd['WP']
     comparativeAdjectiveCount = tag_fd['JJR']
+    determinerCount = tag_fd['DT']
 
-    featureVector = [num_words, num_unique_words, whDeterminerCount, whPronounCount, comparativeAdjectiveCount]
+    featureVector = [num_words, num_unique_words, whDeterminerCount, whPronounCount, comparativeAdjectiveCount,determinerCount]
     
     # Options for additional features to use:
     
@@ -157,7 +161,7 @@ def extract_language_features(question):
     return featureVector
 X_train, y_train, X_test, y_test =[],[],[],[]
 
-num_VQs = 20
+num_VQs = 100
 for vq in training_data[0:num_VQs]:
     # Question features
     question = vq['question']
@@ -172,7 +176,6 @@ for vq in training_data[0:num_VQs]:
     #print(image_url)
     image_feature = extract_image_features(image_url)
     print(image_feature)
-    print(image_feature[:5])
     print(image_feature.shape)
     
     # PLACEHOLDER: Concatenate the question and image features
@@ -182,7 +185,7 @@ for vq in training_data[0:num_VQs]:
     X_train.append(multimodal_features)
     y_train.append(vq['answerable'])
 
-num_VQs_testing = 3
+num_VQs_testing = 30
 for vq in validation_data[0:num_VQs_testing]:
     # Question features
     question = vq['question']
