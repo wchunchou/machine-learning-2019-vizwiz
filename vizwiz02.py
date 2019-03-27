@@ -12,6 +12,8 @@ Created on Sun Mar 24 00:28:23 2019
 import os
 import json
 from pprint import pprint
+import pandas as pd
+from pandas.io.json import json_normalize
 import numpy as np
 import requests
 import key
@@ -73,8 +75,6 @@ def extract_image_features(image_url):
     image = resize(image, (width, height), mode='reflect') # Ensuring all images have the same dimension
     greyscale_image = color.rgb2gray(image) # Restricting the dimension of our data from 3D to 2D
     
-    # Extract features
-    featureVector = feature.hog(greyscale_image, orientations=9, pixels_per_cell=(8,8), cells_per_block=(1,1), block_norm='L2-Hys')
 
     # Extract features
     featureVector = feature.hog(greyscale_image, orientations=9, pixels_per_cell=(8,8), cells_per_block=(1,1), block_norm='L2-Hys')
@@ -84,19 +84,21 @@ def extract_image_features(image_url):
 
 def extract_image_features_azure(image_url):
     # Azure CV
-    image = io.imread(image_url)
+    vision_analyze_url = io.imread(image_url)
     
     # Microsoft API headers, params, etc
-    #headers = {'Ocp-Apim-Subscription-key': subscription_key}
-    #params = {'visualfeatures': 'Categories,Color,description,Faces,Tags'}
-    #data = {'url': image_url}
+    headers = {'Ocp-Apim-Subscription-key': subscription_key}
+    params = {'visualfeatures': 'Categories,Color,description,Faces,Tags'}
+    data = {'url': image_url}
     
     # send request, get API response
-    #response = requests.post(vision_analyze_url, headers=headers, params=params, json=data)
-    #response.raise_for_status()
-    #data = response.json()
-    #extracted_data = extract_features(data)
-    #features = [extracted_data['tags'][0]]
+    response = requests.post(vision_analyze_url, headers=headers, params=params, json=data)
+    response.raise_for_status()
+    data = response.json()
+    extracted_data = extract_features(data)
+    features = [extracted_data['tags'][0]['name']]
+    
+    return []
 
 def extract_features(data):
     return {
@@ -129,9 +131,8 @@ def extract_language_features(question):
     whDeterminerCount = tag_fd['WDT']
     whPronounCount = tag_fd['WP']
     comparativeAdjectiveCount = tag_fd['JJR']
-    determinerCount = tag_fd['DT']
 
-    featureVector = [num_words, num_unique_words, whDeterminerCount, whPronounCount, comparativeAdjectiveCount,determinerCount]
+    featureVector = [num_words, num_unique_words, whDeterminerCount, whPronounCount, comparativeAdjectiveCount,]
     
     # Options for additional features to use:
     
@@ -176,8 +177,12 @@ for vq in training_data[0:num_VQs]:
     print(image_feature)
     print(image_feature.shape)
     
+    #azure_features
+    azurecv_features = extract_image_features_azure(image_url)
+    print(azurecv_features)
+    
     # PLACEHOLDER: Concatenate the question and image features
-    multimodal_features = np.concatenate((question_feature, image_feature), axis=None)
+    multimodal_features = np.concatenate((question_feature, image_feature, azurecv_features), axis=None)
     #print(multimodal_features[:7])
     #print(multimodal_features.shape)
     X_train.append(multimodal_features)
@@ -200,8 +205,12 @@ for vq in validation_data[0:num_VQs_testing]:
     #print(image_feature[:5])
     #print(image_feature.shape)
     
+    #azure_features
+    azurecv_features = extract_image_features_azure(image_url)
+    print(azurecv_features)
+    
     # PLACEHOLDER: Concatenate the question and image features
-    multimodal_features = np.concatenate((question_feature, image_feature), axis=None)
+    multimodal_features = np.concatenate((question_feature, image_feature, azurecv_features), axis=None)
     #print(multimodal_features[:7])
     #print(multimodal_features.shape)
     X_test.append(multimodal_features)
