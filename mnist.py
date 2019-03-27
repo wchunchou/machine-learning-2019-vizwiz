@@ -22,7 +22,7 @@ X_train_std = stdsc.transform(X_train)
 X_test_std = stdsc.transform(X_test)
 
 # Optimize hyperparameters
-mlp = MLPClassifier(max_iter=20, random_state=42, verbose=True, hidden_layer_sizes=(10,10,10))
+mlp = MLPClassifier(max_iter=20, random_state=42, verbose=True, hidden_layer_sizes=(30,))
 mlp.fit(X_train_std, y_train)
 print("Accuracy on the test set: {:.2f}".format(mlp.score(X_test_std, y_test)))
 print("Activation function used at the output layer: %s" % mlp.out_activation_)
