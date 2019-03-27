@@ -12,8 +12,6 @@ Created on Sun Mar 24 00:28:23 2019
 import os
 import json
 from pprint import pprint
-import pandas as pd
-from pandas.io.json import json_normalize
 import numpy as np
 import requests
 import key
